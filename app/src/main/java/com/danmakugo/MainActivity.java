@@ -183,10 +183,16 @@ private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemS
         if(LoginUtil.isLogin(MainActivity.this)){
             //登录
 
+            String t1=LoginUtil.getUserInfo(MainActivity.this,LoginUtil.HEAD_URL_STRING);
+
+
+
             Glide.with(MainActivity.this)
                     .load(LoginUtil.getUserInfo(MainActivity.this,LoginUtil.HEAD_URL_STRING))
                     .apply(new RequestOptions().placeholder(R.drawable.mytest).error(R.drawable.mytest).dontAnimate().centerCrop())
                     .into(circleImageViewHeadView);
+
+            String T=LoginUtil.getUserInfo(MainActivity.this,LoginUtil.USERNAME_STRING);
 
             userNmae.setText(LoginUtil.getUserInfo(MainActivity.this,LoginUtil.USERNAME_STRING));
 

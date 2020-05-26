@@ -6,6 +6,11 @@
     <string name="top_nav_home_text">主页</string>
     <string name="describe_elect_files_to_play">选择视频文件匹配弹幕</string>
 
+    <string name="server_host">192.168.0.162</string>
+    <string name="server_port">8080</string>
+
+
+
     <string name="detail_text">我发斯蒂芬是打发阿斯蒂芬撒地我发斯蒂芬是打发阿斯蒂芬撒地方我打发阿斯
         发斯蒂芬是打发阿斯蒂芬撒地方我发斯蒂芬是打发阿斯蒂芬撒地方我发斯蒂打发阿斯蒂芬撒地方我蒂芬撒发
         我发斯蒂芬是打发阿斯蒂芬撒地方我发斯蒂撒地方芬是打发阿斯蒂打发阿斯蒂芬撒地方我撒地方我我蒂芬撒

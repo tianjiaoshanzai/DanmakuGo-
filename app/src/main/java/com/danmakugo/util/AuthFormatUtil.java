@@ -22,9 +22,9 @@ public class AuthFormatUtil {
 
     }
 
-    public static boolean checkPassword(Context context,String userNmae){
+    public static boolean checkPassword(Context context,String password){
 
-        if(userNmae.matches(PASSWORD_REGEX)){
+        if(password.matches(PASSWORD_REGEX)){
             return true;
         }else {
             Toast.makeText(context,"密码必须是6-20位的字母、数字、下划线",Toast.LENGTH_SHORT).show();

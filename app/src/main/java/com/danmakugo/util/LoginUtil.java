@@ -13,6 +13,22 @@ import java.util.prefs.Preferences;
 
 public class LoginUtil {
 
+    //--服务器登录响应CODE---------------------------------------------------------
+    public static final int LOGIN_SUCESS_CODE=101;
+
+    public static final int LOGIN_FAILD_CODE=102;
+
+    public static final int TOKEN_UNUSEFUL_ID=-1;
+
+    public static final int REGISTER_SUCESS_CODE=103;
+
+    public static final int REGISTER_FAILD_CODE=104;
+
+    public static final int UPDATE_SUCESS_CODE=105;
+    //-------------------------------------------------------------
+
+
+    //*****UserInfo和Type**************************************
     public static final String USER_INFO="user_info";
     public static final String TOKEN="token";
     public static final String NULL_STRING="";
@@ -20,16 +36,16 @@ public class LoginUtil {
 
     public static final String HEAD_URL_STRING="heda_url";
     public static final String USERNAME_STRING="user_name";
+    //******************************************************
 
 
 
 
 
-
-    public static String getUserInfo(Context context,String msg){
+    public static String getUserInfo(Context context,String type){
         SharedPreferences preferences= context.getSharedPreferences(USER_INFO,Context.MODE_PRIVATE);
 
-        String info_msg=preferences.getString(msg,NULL_STRING);
+        String info_msg=preferences.getString(type,NULL_STRING);
         return info_msg;
 
     }
