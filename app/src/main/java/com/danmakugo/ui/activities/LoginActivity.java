@@ -38,7 +38,7 @@ public class LoginActivity extends BaseActivity {
 
     private static final String TAG = "LoginActivity";
 
-    public static final int SEND_TOAST=1;
+    private final int SEND_TOAST=1;
 
     private Handler handler=new Handler(){
         @Override
