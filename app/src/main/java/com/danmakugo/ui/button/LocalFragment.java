@@ -30,6 +30,7 @@ import com.danmakugo.adapter.MediaFileAdapter;
 import com.danmakugo.base.BaseFragment;
 import com.danmakugo.model.MediaFile;
 import com.danmakugo.ui.player.DanmkuVideoActivity;
+import com.danmakugo.util.LoginUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +77,11 @@ public class LocalFragment extends BaseFragment {
                 //intent.setType("*/*");//无类型限制
                 intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-                startActivityForResult(intent, 1);
+                if(LoginUtil.isLogin(getActivity())){
+                    startActivityForResult(intent, 1);
+                }else {
+                    LoginUtil.login(getActivity());
+                }
             }
         });
 

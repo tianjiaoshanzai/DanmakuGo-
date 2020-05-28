@@ -2,11 +2,15 @@ package com.danmakugo.ui.button;
 
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.MediaStore;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.Fragment;
@@ -18,16 +22,43 @@ import com.danmakugo.R;
 import com.danmakugo.adapter.MediaAdapter;
 import com.danmakugo.adapter.PostAdapter;
 import com.danmakugo.base.BaseFragment;
+import com.danmakugo.json.Result;
+import com.danmakugo.model.Media;
 import com.danmakugo.model.StreamMedia;
+import com.danmakugo.ui.player.DanmakuVideoPlayer;
+import com.danmakugo.ui.player.DanmkuVideoActivity;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Response;
 
 
 /**
  * A simple {@link Fragment} subclass.
  */
 public class HotDanmakuHomeFragment extends BaseFragment {
+
+    private final int SEND_TOAST=1;
+
+    private Handler handler=new Handler(){
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            switch (msg.what){
+                case SEND_TOAST:
+                    Toast.makeText(getActivity(),msg.obj.toString(),Toast.LENGTH_SHORT).show();
+                    break;
+
+            }
+        }
+    };
+
 
     private List<StreamMedia> streamMediaList =new ArrayList<>();
 
@@ -62,19 +93,92 @@ public class HotDanmakuHomeFragment extends BaseFragment {
     }
 
     private void initStreamMedias(){
-        StreamMedia streamMedia1=new StreamMedia();
-        streamMedia1.setMediaName("张宇高数1");
-        streamMedia1.setMediaHotPoint(32457);
-        streamMediaList.add(streamMedia1);
 
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
-        streamMediaList.add(streamMedia1);
+
+        OkHttpClient okHttpClient = new OkHttpClient()
+                .newBuilder().connectTimeout(50000, TimeUnit.MILLISECONDS)
+                .readTimeout(50000,TimeUnit.MILLISECONDS)
+                .build();
+//        RequestBody body = RequestBody.create(JSON,json);
+
+        HttpUrl url=new HttpUrl.Builder()
+                .scheme("http")
+                .host(getString(R.string.server_host))
+                .port(Integer.parseInt(getString(R.string.server_port)))
+                .addPathSegments("danmakus/getHotDanmakus")
+                .build();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .build();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                try {
+                    Response response=null;
+
+                    response=okHttpClient.newCall(request).execute();
+                    String responseBody=response.body().string();
+
+                    Gson gson=new Gson();
+                    Result<List<Media>> result=gson.fromJson(responseBody, new TypeToken<Result<List<Media>>>() {
+                    }.getType());
+
+
+                    List<Media> mediaList1=result.getData();
+
+
+                    streamMediaList=new ArrayList<>();
+
+                    int baseHotPoint=2314;
+                    for(Media media:mediaList1){
+                        StreamMedia streamMedia1=new StreamMedia();
+
+                        streamMedia1.setMediaName(media.getName());
+                        streamMedia1.setMediaHotPoint(media.getHotPoint()*baseHotPoint);
+                        streamMediaList.add(streamMedia1);
+                    }
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj=result.getMessage();
+                    handler.sendMessage(message);
+
+                }catch (IOException e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="获取失败";
+                    handler.sendMessage(message);
+                }catch (Exception e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="获取失败";
+                    handler.sendMessage(message);
+                }
+
+
+            }
+        }).start();
+//
+//        StreamMedia streamMedia1=new StreamMedia();
+//        streamMedia1.setMediaName("张宇高数1");
+//        streamMedia1.setMediaHotPoint(32457);
+//        streamMediaList.add(streamMedia1);
+//
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
+//        streamMediaList.add(streamMedia1);
 
 
     }

@@ -1,20 +1,24 @@
 package com.danmakugo.model;
 
-public class Article {
-    private String title;
-    //推荐指数
-    private int recommendPoint;
-    //封面url
-    private String imageUrl;
-    //文章内容
-    private String content;
+import java.util.Date;
 
-    public String getTitle() {
-        return title;
+public class Article {
+
+    private int id;
+    private String content;
+    private String title;
+    private String imageUrl;
+    private int userId;
+    private Date publishTime;
+
+    private int recommendPoint;
+
+    public String getImageUrl() {
+        return imageUrl;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public int getRecommendPoint() {
@@ -25,12 +29,12 @@ public class Article {
         this.recommendPoint = recommendPoint;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public int getId() {
+        return id;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setId(int id) {
+        this.id = id;
     }
 
     public String getContent() {
@@ -40,4 +44,37 @@ public class Article {
     public void setContent(String content) {
         this.content = content;
     }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public int getUserId() {
+        return userId;
+    }
+
+    public void setUserId(int userId) {
+        this.userId = userId;
+    }
+
+    public Date getPublishTime() {
+        return publishTime;
+    }
+
+    public void setPublishTime(Date publishTime) {
+        this.publishTime = publishTime;
+    }
+
+//    private String title;
+//    //推荐指数
+//    private int recommendPoint;
+//    //封面url
+//    private String imageUrl;
+//    //文章内容
+//    private String content;
+
 }

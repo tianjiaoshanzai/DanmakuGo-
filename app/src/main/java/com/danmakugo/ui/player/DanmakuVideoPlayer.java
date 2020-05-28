@@ -3,16 +3,29 @@ package com.danmakugo.ui.player;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.os.Handler;
+import android.os.Message;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+
+import com.danmakugo.MainApplication;
 import com.danmakugo.R;
 import com.danmakugo.adapter.DanamakuAdapter;
+import com.danmakugo.json.Result;
+import com.danmakugo.model.Danmaku;
+import com.danmakugo.model.Media;
+import com.danmakugo.ui.activities.LoginActivity;
 import com.danmakugo.util.BiliDanmukuParser;
+import com.danmakugo.util.LoginUtil;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.shuyu.gsyvideoplayer.utils.Debuger;
 import com.shuyu.gsyvideoplayer.video.StandardGSYVideoPlayer;
 import com.shuyu.gsyvideoplayer.video.base.GSYBaseVideoPlayer;
@@ -26,6 +39,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import master.flame.danmaku.controller.IDanmakuView;
 import master.flame.danmaku.danmaku.loader.ILoader;
@@ -40,8 +55,28 @@ import master.flame.danmaku.danmaku.model.android.SpannedCacheStuffer;
 import master.flame.danmaku.danmaku.parser.BaseDanmakuParser;
 import master.flame.danmaku.danmaku.parser.IDataSource;
 import master.flame.danmaku.ui.widget.DanmakuView;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
+
+    private final int SEND_TOAST=1;
+
+    private Handler handler=new Handler(){
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            switch (msg.what){
+                case SEND_TOAST:
+                    Toast.makeText(MainApplication.getCustomUtilApplicationContext(),msg.obj.toString(),Toast.LENGTH_SHORT).show();
+                    break;
+
+            }
+        }
+    };
+
     private BaseDanmakuParser mParser;//解析器对象
     private IDanmakuView mDanmakuView;//弹幕view
     private DanmakuContext mDanmakuContext;
@@ -54,7 +89,11 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
 
     private boolean mDanmaKuShow = true;
 
-    private File mDumakuFile;
+//    private File mDumakuFile;
+
+    private String jsonString;
+
+    private int mediaId;
 
     public DanmakuVideoPlayer(Context context, Boolean fullFlag) {
         super(context, fullFlag);
@@ -157,7 +196,12 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
 
     @Override
     protected void cloneParams(GSYBaseVideoPlayer from, GSYBaseVideoPlayer to) {
-        ((DanmakuVideoPlayer) to).mDumakuFile = ((DanmakuVideoPlayer) from).mDumakuFile;
+        ((DanmakuVideoPlayer) to).jsonString = ((DanmakuVideoPlayer) from).jsonString;
+
+        ((DanmakuVideoPlayer) to).mediaId = ((DanmakuVideoPlayer) from).mediaId;
+
+
+//        ((DanmakuVideoPlayer) to).mDumakuFile = ((DanmakuVideoPlayer) from).mDumakuFile;
         super.cloneParams(from, to);
     }
 
@@ -209,12 +253,29 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
         }
     }
 
-    public void setDanmaKuStream(File is) {
-        mDumakuFile = is;
+    public void setDanmakuJsonString(String danmakuJsonString){
+        jsonString=danmakuJsonString;
+
+//        mDumakuFile = is;
         if (!getDanmakuView().isPrepared()) {
             onPrepareDanmaku((DanmakuVideoPlayer) getCurrentPlayer());
         }
     }
+
+    public void setMediaId(int mediaId1){
+        mediaId=mediaId1;
+    }
+
+
+
+//        public void setDanmaKuStream(/**File is**/List<Danmaku> danmakuList) {
+//        danmakuList=danmakus;
+//
+////        mDumakuFile = is;
+//        if (!getDanmakuView().isPrepared()) {
+//            onPrepareDanmaku((DanmakuVideoPlayer) getCurrentPlayer());
+//        }
+//    }
 
 
     private void initDanmaku() {
@@ -233,12 +294,16 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
                 .setMaximumLines(maxLinesPair)
                 .preventOverlapping(overlappingEnablePair);
         if (mDanmakuView != null) {
-            if (mDumakuFile != null) {
-                mParser = createParser(getIsStream(mDumakuFile));
+            if (jsonString != null) {
+
+//                mParser = createParser(getIsStream(mDumakuFile));
+                mParser=createParser(jsonString);
+
+
             }
 
             //todo 这是为了demo效果，实际上需要去掉这个，外部传输文件进来
-            mParser = createParser(this.getResources().openRawResource(R.raw.comments));
+//            mParser = createParser(this.getResources().openRawResource(R.raw.comments));
 
             mDanmakuView.setCallback(new master.flame.danmaku.controller.DrawHandler.Callback() {
                 @Override
@@ -363,6 +428,42 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
         BaseDanmakuParser parser = new BiliDanmukuParser();
 
         IDataSource<?> dataSource = loader.getDataSource();
+
+        parser.load(dataSource);
+        return parser;
+
+    }
+
+    /**
+     创建解析器对象，解析输入流
+     @param jsonString
+     @return
+     */
+    private BaseDanmakuParser createParser(String jsonString) {
+
+        if (jsonString == null) {
+            return new BaseDanmakuParser() {
+
+                @Override
+                protected Danmakus parse() {
+                    return new Danmakus();
+                }
+            };
+        }
+
+//        ILoader loader = DanmakuLoaderFactory.create(DanmakuLoaderFactory.TAG_BILI);
+//
+//        try {
+//            //todo:输入流请求json
+//            loader.load(stream);
+//        } catch (IllegalDataException e) {
+//            e.printStackTrace();
+//        }
+        //todo:改变解析方式为json
+        BaseDanmakuParser parser = new BiliDanmukuParser();
+
+        IDataSource<?> dataSource = new JsonStringSource(jsonString);
+
         parser.load(dataSource);
         return parser;
 
@@ -380,8 +481,10 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
 
     public BaseDanmakuParser getParser() {
         if (mParser == null) {
-            if (mDumakuFile != null) {
-                mParser = createParser(getIsStream(mDumakuFile));
+            if (jsonString != null) {
+//                mParser = createParser(getIsStream(mDumakuFile));
+                mParser = createParser(jsonString);
+
             }
         }
         return mParser;
@@ -429,6 +532,94 @@ public class DanmakuVideoPlayer extends StandardGSYVideoPlayer {
         danmaku.textColor = Color.RED;
         danmaku.textShadowColor = Color.WHITE;
         danmaku.borderColor = Color.GREEN;
+
+
+        /**
+         * 弹幕上传发送
+         */
+        Danmaku danmakuEntity=new Danmaku();
+
+        danmakuEntity.setContent(danmakuText);
+        danmakuEntity.setProcess((int)mDanmakuView.getCurrentTime() + 500);
+        danmakuEntity.setColor(0x00ffffff&Color.RED);
+        danmakuEntity.setType(1);
+        danmakuEntity.setTextSize(25);
+        danmakuEntity.setPool(1);
+        danmakuEntity.setMediaId(mediaId);
+
+        OkHttpClient okHttpClient = new OkHttpClient()
+                .newBuilder().connectTimeout(50000, TimeUnit.MILLISECONDS)
+                .readTimeout(50000,TimeUnit.MILLISECONDS)
+                .build();
+
+
+
+        Gson gson=new Gson();
+
+        String requestJson=gson.toJson(danmakuEntity,new TypeToken<Danmaku>() {
+        }.getType());
+
+        MediaType JSON=MediaType.parse("application/json; charset=utf-8");
+
+        RequestBody body = RequestBody.create(JSON,requestJson);
+
+        //一个工具上下文
+        Context context= MainApplication.getCustomUtilApplicationContext();
+
+        HttpUrl url=new HttpUrl.Builder()
+                .scheme("http")
+                .host(context.getString(R.string.server_host))
+                .port(Integer.parseInt(context.getString(R.string.server_port)))
+                .addPathSegments("danmakus/send")
+                .build();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .addHeader("User-Token", LoginUtil.getUserInfo(context,LoginUtil.TOKEN))
+                .url(url)
+                .post(body)
+                .build();
+
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                try {
+                    Response response=null;
+
+                    response=okHttpClient.newCall(request).execute();
+                    String responseBody=response.body().string();
+
+                    Result<String> result=gson.fromJson(responseBody, new TypeToken<Result<String>>() {
+                    }.getType());
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj=result.getMessage();
+                    handler.sendMessage(message);
+
+                }catch (Exception e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="发送失败";
+                    handler.sendMessage(message);
+                }
+
+
+            }
+        }).start();
+
+
+
+//        danmakuEntity.setSendId();   todo  sendId在服务器解析token后设置
+
+
+
+//        OkHttpClient okHttpClient;
+
+
         mDanmakuView.addDanmaku(danmaku);
 
     }

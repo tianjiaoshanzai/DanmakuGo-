@@ -18,6 +18,12 @@ package com.danmakugo.util;
 import android.graphics.Color;
 import android.text.TextUtils;
 
+import com.danmakugo.json.Result;
+import com.danmakugo.model.Danmaku;
+import com.danmakugo.ui.player.JsonStringSource;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.xml.sax.Attributes;
@@ -28,6 +34,7 @@ import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Locale;
 
 import master.flame.danmaku.danmaku.model.AlphaValue;
@@ -53,24 +60,135 @@ public class BiliDanmukuParser extends BaseDanmakuParser {
     @Override
     public Danmakus parse() {
 
+
+
         if (mDataSource != null) {
-            AndroidFileSource source = (AndroidFileSource) mDataSource;
+
+            JsonStringSource jsonStringSource=(JsonStringSource)mDataSource;
+
+            String jsonString=jsonStringSource.data();
+
+            Gson gson=new Gson();
+
             try {
-                XMLReader xmlReader = XMLReaderFactory.createXMLReader();
-                XmlContentHandler contentHandler = new XmlContentHandler();
-                xmlReader.setContentHandler(contentHandler);
-                xmlReader.parse(new InputSource(source.data()));
-                return contentHandler.getResult();
-            } catch (SAXException e) {
+                Result<List<Danmaku>> result = gson.fromJson(jsonString, new TypeToken<Result<List<Danmaku>>>() {
+                }.getType());
+
+                List<Danmaku> danmakuList=result.getData();
+
+                HandleParser handleParser=new HandleParser();
+                handleParser.setData(danmakuList);
+                Danmakus danmakus=handleParser.getResult();
+
+                return danmakus;
+            }catch (Exception e){
                 e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+
+                return new Danmakus();
             }
+
+
+//            List<Danmaku> danmakuList=result.getData();
+//
+//            HandleParser handleParser=new HandleParser();
+//            handleParser.setData(danmakuList);
+//            Danmakus danmakus=handleParser.getResult();
+//
+//            return danmakus;
+
+//            AndroidFileSource source = (AndroidFileSource) mDataSource;
+//            try {
+//                XMLReader xmlReader = XMLReaderFactory.createXMLReader();
+//                XmlContentHandler contentHandler = new XmlContentHandler();
+//                xmlReader.setContentHandler(contentHandler);
+//                xmlReader.parse(new InputSource(source.data()));
+//                return contentHandler.getResult();
+//            } catch (SAXException e) {
+//                e.printStackTrace();
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
 
         }
 
         return null;
     }
+
+    public class HandleParser {
+        private static final String TRUE_STRING = "true";
+
+        public Danmakus result = new Danmakus();
+
+        public BaseDanmaku item = null;
+
+
+        public int index = 0;
+
+        List<Danmaku> danmakus;
+
+
+        public void setData(List<Danmaku> danmakuList) {
+            danmakus = danmakuList;
+        }
+
+        public Danmakus getResult() {
+            // <d p="23.826000213623,1,25,16777215,1422201084,0,057075e9,757076900">我从未见过如此厚颜无耻之猴</d>
+            // 0:时间(弹幕出现时间)
+            // 1:类型(1从右至左滚动弹幕|6从左至右滚动弹幕|5顶端固定弹幕|4底端固定弹幕|7高级弹幕|8脚本弹幕)
+            // 2:字号
+            // 3:颜色
+            // 4:时间戳 ?
+            // 5:弹幕池id
+            // 6:用户hash
+            // 7:弹幕id
+
+            for (Danmaku danmaku : danmakus) {
+
+                long time = (long) danmaku.getProcess(); // 出现时间
+                int type = danmaku.getType(); // 弹幕类型
+                float textSize = danmaku.getTextSize(); // 字体大小
+                int color = (int) ((0x00000000ff000000 | (long) danmaku.getColor()) & 0x00000000ffffffff); // 颜色
+
+
+
+
+                // int poolType = Integer.parseInt(values[5]); // 弹幕池类型（忽略
+                item = mContext.mDanmakuFactory.createDanmaku(type, mContext);
+                if (item != null) {
+                    item.setTime(time);
+                    item.textSize = textSize * (mDispDensity - 0.6f);
+                    item.textColor = color;
+                    item.textShadowColor = color <= Color.BLACK ? Color.WHITE : Color.BLACK;
+
+
+                }
+
+
+                if (item != null) {
+                    DanmakuUtils.fillText(item, danmaku.getContent());
+                    item.index = index++;
+                }
+
+                if (item != null && item.text != null) {
+                    if (item.duration != null) {
+                            item.setTimer(mTimer);
+                            item.flags = mContext.mGlobalFlagValues;
+                            Object lock = result.obtainSynchronizer();
+                            synchronized (lock) {
+                                result.addItem(item);
+                            }
+
+                    }
+                }
+
+
+            }
+            return result;
+        }
+    }
+
+
+
 
     public class XmlContentHandler extends DefaultHandler {
 
@@ -129,6 +247,8 @@ public class BiliDanmukuParser extends BaseDanmakuParser {
                         item.textColor = color;
                         item.textShadowColor = color <= Color.BLACK ? Color.WHITE : Color.BLACK;
                     }
+
+
                 }
             }
         }
@@ -147,6 +267,7 @@ public class BiliDanmukuParser extends BaseDanmakuParser {
                         }
                     }
                 }
+
                 item = null;
             }
         }
@@ -288,4 +409,5 @@ public class BiliDanmukuParser extends BaseDanmakuParser {
         mDispScaleY = mDispHeight / DanmakuFactory.BILI_PLAYER_HEIGHT;
         return this;
     }
+
 }

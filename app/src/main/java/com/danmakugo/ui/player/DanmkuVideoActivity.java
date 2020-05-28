@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.provider.ContactsContract;
 import android.support.v4.app.INotificationSideChannel;
 import android.text.TextUtils;
@@ -13,7 +15,9 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.DividerItemDecoration;
@@ -23,10 +27,16 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.danmakugo.R;
 import com.danmakugo.adapter.ReplyAdapter;
 import com.danmakugo.base.BaseAppCompatActivity;
+import com.danmakugo.json.Result;
+import com.danmakugo.model.Media;
 import com.danmakugo.model.Reply;
+import com.danmakugo.ui.activities.LoginActivity;
 import com.danmakugo.ui.activities.PostActivity;
 import com.danmakugo.ui.activities.SendReplyActivity;
+import com.danmakugo.util.FileUtil;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.shuyu.gsyvideoplayer.GSYVideoManager;
 import com.shuyu.gsyvideoplayer.listener.GSYSampleCallBack;
 import com.shuyu.gsyvideoplayer.listener.LockClickListener;
@@ -36,18 +46,51 @@ import com.zhy.http.okhttp.OkHttpUtils;
 import com.zhy.http.okhttp.callback.FileCallBack;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-
+import master.flame.danmaku.danmaku.model.Danmaku;
+import okhttp3.FormBody;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 
 public class DanmkuVideoActivity extends BaseAppCompatActivity {
 
+    private final int SEND_TOAST=1;
+
+    private Handler handler=new Handler(){
+        @Override
+        public void handleMessage(@NonNull Message msg) {
+            switch (msg.what){
+                case SEND_TOAST:
+                    Toast.makeText(DanmkuVideoActivity.this,msg.obj.toString(),Toast.LENGTH_SHORT).show();
+                    break;
+
+            }
+        }
+    };
+
+
     public static final String REPLY_TO_ID="reply_to_id";
     public static final String FILE_URL="video_url";
+
+    public static final MediaType JSON=MediaType.parse("application/json; charset=utf-8");
+
+
+
+    private String fileName;
+
+    private int mediaId;
+
+
 
 
 
@@ -98,6 +141,16 @@ public class DanmkuVideoActivity extends BaseAppCompatActivity {
 
         Intent intent=getIntent();
         String url5=intent.getStringExtra(FILE_URL);
+
+        fileName=FileUtil.getFileName(url5);
+
+//        mediaId=
+
+//        ((DanmakuVideoPlayer) danmakuVideoPlayer.getCurrentPlayer()).setMediaId(getMediaId(fileName));
+
+        getMediaId(fileName);
+
+
         String url4= "file://"+ Environment.getExternalStorageDirectory().getPath()+"/[JYFanSub][Boku Dake ga Inai Machi][01][GB][720P].mp4";
         //String url = "https://res.exexm.com/cw_145225549855002";
         String url = "http://9890.vod.myqcloud.com/9890_4e292f9a3dd011e6b4078980237cc3d3.f20.mp4";
@@ -198,6 +251,72 @@ public class DanmkuVideoActivity extends BaseAppCompatActivity {
 
     }
 
+
+    /**
+     * 获取视频ID并设置到当前播放器
+     * @param fileName
+     * @return
+     */
+    private void getMediaId(String fileName) {
+
+        OkHttpClient okHttpClient = new OkHttpClient()
+                .newBuilder().connectTimeout(50000, TimeUnit.MILLISECONDS)
+                .readTimeout(50000,TimeUnit.MILLISECONDS)
+                .build();
+//        RequestBody body = RequestBody.create(JSON,json);
+
+        HttpUrl url=new HttpUrl.Builder()
+                .scheme("http")
+                .host(getString(R.string.server_host))
+                .port(Integer.parseInt(getString(R.string.server_port)))
+                .addPathSegments("/media/getMedia")
+                .addPathSegment(fileName)
+                .build();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .build();
+
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                try {
+                    Response response=null;
+
+                    response=okHttpClient.newCall(request).execute();
+                    String responseBody=response.body().string();
+
+                    Gson gson=new Gson();
+                    Result<Media> result=gson.fromJson(responseBody, new TypeToken<Result<Media>>() {
+                    }.getType());
+
+                    ((DanmakuVideoPlayer) danmakuVideoPlayer.getCurrentPlayer()).setMediaId(result.getData().getId());
+
+
+                }catch (IOException e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="获取失败";
+                    handler.sendMessage(message);
+                }catch (Exception e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="获取失败";
+                    handler.sendMessage(message);
+                }
+
+
+            }
+        }).start();
+
+    }
+
     //初始化回复内容
     private void initMediaReplys() {
         Reply reply1=new Reply();
@@ -269,27 +388,97 @@ public class DanmkuVideoActivity extends BaseAppCompatActivity {
     }
 
 
+    /**
+     * 网络请求获取弹幕
+     */
     private void getDanmu() {
-        //下载demo然后设置
-        OkHttpUtils.get().url(TextUtils.concat("http://xingyuyou.com/Public/app/barragefile/","608","barrage.txt").toString())
-                .build()
-                .execute(new FileCallBack(getApplication().getCacheDir().getAbsolutePath(), "barrage.txt")//
-                {
+        //todo  下载demo然后设置
 
-                    @Override
-                    public void onError(okhttp3.Call call, Exception e, int id) {
 
-                    }
 
-                    @Override
-                    public void onResponse(File response, int id) {
-                        if (!isDestory) {
-                            ((DanmakuVideoPlayer) danmakuVideoPlayer.getCurrentPlayer()).setDanmaKuStream(response);
-                        }
 
-                    }
+//        fileName="测试2";
 
-                });
+        OkHttpClient okHttpClient = new OkHttpClient()
+                .newBuilder().connectTimeout(50000, TimeUnit.MILLISECONDS)
+                .readTimeout(50000,TimeUnit.MILLISECONDS)
+                .build();
+//        RequestBody body = RequestBody.create(JSON,json);
+
+        HttpUrl url=new HttpUrl.Builder()
+                .scheme("http")
+                .host(getString(R.string.server_host))
+                .port(Integer.parseInt(getString(R.string.server_port)))
+                .addPathSegments("/danmakus/mediaName")
+                .addPathSegment(fileName)
+                .build();
+
+        okhttp3.Request request = new okhttp3.Request.Builder()
+                .url(url)
+                .build();
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                try {
+                    Response response=null;
+
+                    response=okHttpClient.newCall(request).execute();
+                    String responseBody=response.body().string();
+
+                    Gson gson=new Gson();
+                    Result<List<Danmaku>> result=gson.fromJson(responseBody, new TypeToken<Result<List<Danmaku>>>() {
+                    }.getType());
+
+                    ((DanmakuVideoPlayer) danmakuVideoPlayer.getCurrentPlayer()).setDanmakuJsonString(responseBody);
+
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj=result.getMessage();
+                    handler.sendMessage(message);
+
+
+                }catch (IOException e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="获取失败";
+                    handler.sendMessage(message);
+                }catch (Exception e){
+                    e.printStackTrace();
+
+                    Message message=new Message();
+                    message.what=SEND_TOAST;
+                    message.obj="获取失败";
+                    handler.sendMessage(message);
+                }
+
+
+            }
+        }).start();
+
+//        OkHttpUtils.get().url(TextUtils.concat("http://xingyuyou.com/Public/app/barragefile/","608","barrage.txt").toString())
+//                .build()
+//                .execute(new FileCallBack(getApplication().getCacheDir().getAbsolutePath(), "barrage.txt")//
+//                {
+//
+//                    @Override
+//                    public void onError(okhttp3.Call call, Exception e, int id) {
+//
+//                    }
+//
+//                    @Override
+//                    public void onResponse(File response, int id) {
+//                        if (!isDestory) {
+//                            ((DanmakuVideoPlayer) danmakuVideoPlayer.getCurrentPlayer()).setDanmaKuStream(response);
+//                        }
+//
+//                    }
+//
+//                });
     }
 
     private void resolveNormalVideoUI() {

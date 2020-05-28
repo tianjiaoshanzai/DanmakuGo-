@@ -82,7 +82,8 @@ public class LoginActivity extends BaseActivity {
                 if(AuthFormatUtil.checkUserName(LoginActivity.this,stringUserNmae)
                 &&AuthFormatUtil.checkPassword(LoginActivity.this,stringPassword)){
                     OkHttpClient okHttpClient = new OkHttpClient();
-                    RequestBody body = new FormBody.Builder().build();
+                    RequestBody body = new FormBody.Builder()
+                            .build();
 
 //                String url=urlPart1+"/users/login?"+"username="+stringUserNmae+"&password="+stringPassword;
 
@@ -100,6 +101,7 @@ public class LoginActivity extends BaseActivity {
                             .url(url3)
                             .post(body)
                             .build();
+
 
 
                     new Thread(new Runnable() {
